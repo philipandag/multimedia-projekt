@@ -1,0 +1,13 @@
+import pyaudio
+import socket
+
+FORMAT = pyaudio.paInt16
+CHUNK = 64
+CHANNELS = 1
+RATE = 8000
+
+SOCK = socket.SOCK_DGRAM
+RECORD_LENGTH=5
+N_FRAMES=RATE*RECORD_LENGTH/CHUNK
+
+PORT=12345
