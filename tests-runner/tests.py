@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
-import matplotlib.pyplot as plt
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QMainWindow, QVBoxLayout
-from PyQt6.QtCore import pyqtSlot
-import sys
 from audio_evaluation import calc_pesq, calc_p563
 import os
-import aiofiles
 import threading
 import itertools
+import ast
 
 
 SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
@@ -25,45 +21,54 @@ def audio_test_mock(in_file, out_file, value):
     with open(out_file) as out_file:
         pass
 
+def sort_results(results: dict) -> list:
+    sorted_items = sorted(
+        results.items(),
+        key=lambda item: tuple(
+            ast.literal_eval(item[0]).get(key)
+            for key in sorted(ast.literal_eval(item[0]).keys())
+        )
+    )
+    return sorted_items
 
-def perform_wav_test(test_name, file_in, test_function, tested_values) -> {float, float}:
+def perform_wav_test(file_in, test_function, tested_values) -> {float, float}:
+    test_name = "audio_wav_"
     out_dir = os.path.join(TEST_RESULTS_DIR, test_name)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     results = {}
     
     def loop_iteration(values):
-        print(values)
-        return
-        file_out = os.path.join(out_dir, test_name+"_"+str(value) + ".wav")
+
+        file_out = os.path.join(out_dir, test_name+"_"+str(values) + ".wav")
         with open(AUDIO_FILE, "rb") as tmp:
+            os.set_blocking(tmp.fileno(), False)
             with open(file_out, "wb+") as out:
                 out.write(tmp.read())
                 
-        test_function(file_in, file_out, value)
+        test_function(file_in, file_out, values)
         pesq = calc_pesq(file_in, file_out)
         p563 = calc_p563(file_in)
-        print(value, pesq, p563)
-        results[value] = {"pesq": pesq, "p563": p563}
-        #return {"pesq": pesq, "p563": p563}
+        # print(values, pesq, p563)
+        results[str(values)] = {"pesq": pesq, "p563": p563}
+        return {"pesq": pesq, "p563": p563}
     
-    results = {}
     keys, values = zip(*tested_values.items())
-    print(keys)
-    print(values)
     values_combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
-    
     threads = [threading.Thread(target=loop_iteration, args=(values,)) for values in values_combinations]
+    
+    print("Starting tests")
     for t in threads:
         t.start()
     for t in threads:
         t.join()
-    return results
+    print("Tests finished:")
+    return sort_results(results)
 
-def perform_tests(packet_loss_iter):
-    results = {}
+def perform_tests(packet_loss_iter, rtt_iter, reorder_iter):
     tested_values = {
-        "loss": packet_loss_iter
+        "loss": list(packet_loss_iter),
+        "rtt": list(rtt_iter),
+        "reorder": list(reorder_iter)
     }
-    perform_wav_test("loss", AUDIO_FILE, audio_test_mock, tested_values)
-    return results
+    return perform_wav_test(AUDIO_FILE, audio_test_mock, tested_values)
