@@ -16,6 +16,10 @@ class LabeledField(QWidget):
         return self.widget
     def get_label(self):
         return self.label
+    def setEnabled(self, a0):
+        self.label.setEnabled(a0)
+        self.widget.setEnabled(a0)
+        return super().setEnabled(a0)
 
 class TestDataSelector(QWidget):
     """
@@ -28,6 +32,7 @@ class TestDataSelector(QWidget):
         
         title = QLabel()
         title.setText(name)
+        self.name = name
         layoutV.addWidget(title)
         
         self.is_variable = QCheckBox()
@@ -69,15 +74,16 @@ class TestDataSelector(QWidget):
         self.setLayout(layoutV)
         
         self.value = self.start_value.get_widget().value()
+           
     
     def set_controller(self, controller):
         self.controller = controller
     
     def __iter__(self):
-        if self.is_variable.isChecked():
-            return iter([self.start_value.get_widget().value()])
-        else:
+        if self.is_variable.get_widget().isChecked():
             return iter([x/100.0 for x in range(int(self.start_value.get_widget().value()*100), int(self.end_value.get_widget().value()*100+1), int(self.step_value.get_widget().value()*100))])
+        else:
+            return iter([self.start_value.get_widget().value()])
     
 class TestDataSelectorController:
     def __init__(self, max_non_const: int = 1, selectors: list = []):
@@ -106,5 +112,9 @@ class TestDataSelectorController:
             if self.variable_count > 0:
                 self.variable_count -= 1
                 for s in self.selectors:
-                    s.is_variable.setEnabled(True)
-                
+                    s.is_variable.setEnabled(True)   
+    
+    def get_variables(self):
+        return [s for s in self.selectors if s.is_variable.get_widget().isChecked()]
+    def get_constants(self):
+        return [s for s in self.selectors if not s.is_variable.get_widget().isChecked()]
