@@ -204,9 +204,16 @@ fi
 
 if [ -z "$1" ]; then
 	echo "You need to provide subcommand argument"
-else
-  "$@"
+	exit
 fi
+
+if [[ "${#2}" -gt "9" ]]; then
+  echo "Network name has to be 9 characters or less"
+  exit
+fi
+
+"$@"
+
 
 # Written by Maciej Krzyżanowski
 # Created using:
