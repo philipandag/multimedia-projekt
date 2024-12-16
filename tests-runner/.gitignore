@@ -1,0 +1,5 @@
+*.wav
+*.bmp
+*.png
+*.mp4
+test_results/*

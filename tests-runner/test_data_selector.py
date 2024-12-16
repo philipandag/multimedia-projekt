@@ -99,7 +99,6 @@ class TestDataSelectorController:
         self.selectors.append(selector)
     
     def selector_changes_to(self, new_state):
-        print(new_state)
         if new_state != 0:
             if self.variable_count < self.max_non_const:
                 self.variable_count += 1
