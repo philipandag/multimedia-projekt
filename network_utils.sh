@@ -50,9 +50,10 @@ reset_tc_settings() {
 # $3 - delay (ms)
 # $4 - jitter (ms)
 # $5 - correlation (%)
-# $6 - duplicate rate (%)
-# $7 - corrupt rate (%)
-# $8 - reorder rate (%)
+# $6 - loss rate (%)
+# $7 - duplicate rate (%)
+# $8 - corrupt rate (%)
+# $9 - reorder rate (%)
 setup_tc_netem() {
 	if [ "$#" -ne 9 ]; then
     		echo "Error: Exactly 9 arguments are required: network name, rate, \
