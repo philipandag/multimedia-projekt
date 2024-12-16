@@ -54,9 +54,9 @@ reset_tc_settings() {
 # $7 - corrupt rate (%)
 # $8 - reorder rate (%)
 setup_tc_netem() {
-	if [ "$#" -ne 8 ]; then
-    		echo "Error: Exactly 8 arguments are required: network name, rate, \
-delay, jitter, correlation, duplicate rate, corrupt rate, reorder rate"
+	if [ "$#" -ne 9 ]; then
+    		echo "Error: Exactly 9 arguments are required: network name, rate, \
+delay, jitter, correlation, loss, duplicate rate, corrupt rate, reorder rate"
     		exit 1
 	fi
 	
@@ -70,10 +70,10 @@ delay, jitter, correlation, duplicate rate, corrupt rate, reorder rate"
 	reset_tc_settings $1
 	
 	tc qdisc add dev $1_vth1 root netem \
-		rate $2 delay $3ms $4ms $5% duplicate $6% corrupt $7% reorder $8%
+		rate $2 delay $3ms $4ms $5% loss $6% duplicate $7% corrupt $8% reorder $9%
 	tc qdisc add dev $1_vth2 root netem \
-		rate $2 delay $3ms $4ms $5% duplicate $6% corrupt $7% reorder $8%
-		3
+		rate $2 delay $3ms $4ms $5% loss $6% duplicate $7% corrupt $8% reorder $9%
+
 	echo "qdisc set up"
 }
 
