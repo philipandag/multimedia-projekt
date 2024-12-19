@@ -17,6 +17,7 @@ def calc_pesq(in_file: str, out_file: str) -> float:
     
 def calc_p563(in_file: str) -> float:
     out = subprocess.run([P563_PATH, in_file], stdout=subprocess.PIPE).stdout.decode().strip()
+    print(out)
     out = out.split()[3]
     return float(out)
             

@@ -39,8 +39,8 @@ def audio_test_mock(in_file, original_data_dir, out_data_dir, parameters):
 def measure_audio(original_data_dir, out_data_dir, results_dir) -> dict:
     in_file = os.path.join(original_data_dir, "in.wav")
     out_file = os.path.join(out_data_dir, "out.wav")
-    pesq = random.randint(0,1)*5 # calc_pesq(in_file, out_file)
-    p563 = random.randint(0,1)*5 # calc_p563(in_file)
+    pesq = calc_pesq(in_file, out_file)
+    p563 = calc_p563(in_file)
     
     result = {"pesq": pesq, "p.563": p563}
     with open(os.path.join(results_dir, "result.pkl"), "wb") as f:
@@ -67,35 +67,35 @@ def video_test_mock(in_file, original_data_dir, out_data_dir, parameters):
 def measure_video(original_data_dir, out_data_dir, results_dir) -> dict:
     in_file = os.path.join(original_data_dir, "in.mp4")
     out_file = os.path.join(out_data_dir, "out.mp4")
-    # in_video = cv2.VideoCapture(in_file)
-    # out_video = cv2.VideoCapture(out_file)
-    # frames_count = 0
-    # psnr = 0
-    # ssim = 0
-    # while 1:
-    #     _, image_in = in_video.read()
-    #     _, image_out = out_video.read()
-    #     if image_in is None or image_out is None:
-    #         break
-    #     # print(image_in.shape)
+    in_video = cv2.VideoCapture(in_file)
+    out_video = cv2.VideoCapture(out_file)
+    frames_count = 0
+    psnr = 0
+    ssim = 0
+    while 1:
+        _, image_in = in_video.read()
+        _, image_out = out_video.read()
+        if image_in is None or image_out is None:
+            break
+        # print(image_in.shape)
 
-    #     print(frames_count)
-    #     # cv2.imshow("Input", image_in)
-    #     # cv2.waitKey(0)
+        print(frames_count)
+        # cv2.imshow("Input", image_in)
+        # cv2.waitKey(0)
 
-    #     frames_count = frames_count + 1
-    #     image_in = cv2.cvtColor(image_in, cv2.COLOR_BGR2RGB)
-    #     image_out = cv2.cvtColor(image_out, cv2.COLOR_BGR2RGB)
-    #     psnr_score = scikit_psnr(image_in, image_out)
-    #     ssim_score = scikit_ssim(image_in, image_out, multichannel=True, full=True, win_size=7, channel_axis=2)
-    #     psnr = psnr + min(psnr_score, 100)
-    #     ssim = ssim + ssim_score[0]
-    # #cv2.destroyAllWindows()
-    # in_video.release()
-    # out_video.release()
+        frames_count = frames_count + 1
+        image_in = cv2.cvtColor(image_in, cv2.COLOR_BGR2RGB)
+        image_out = cv2.cvtColor(image_out, cv2.COLOR_BGR2RGB)
+        psnr_score = scikit_psnr(image_in, image_out)
+        ssim_score = scikit_ssim(image_in, image_out, multichannel=True, full=True, win_size=7, channel_axis=2)
+        psnr = psnr + min(psnr_score, 100)
+        ssim = ssim + ssim_score[0]
+    #cv2.destroyAllWindows()
+    in_video.release()
+    out_video.release()
     
-    psnr = random.randint(0, 100) # psnr / frames_count
-    ssim = random.random() # ssim / frames_count
+    psnr = psnr / frames_count
+    ssim = ssim / frames_count
     result = {"psnr [dB]": psnr, "ssim [%]": ssim * 100.0}
     with open(os.path.join(results_dir, "result.pkl"), "wb") as f:
         pickle.dump(result, f)
@@ -154,10 +154,12 @@ def perform_test(test_id, file_in, tested_parameters, test_fun, measure_fun) -> 
     return results
 
 
-def perform_tests_audio(test_id, file, on_finish, parameters):
-    results = perform_test(test_id, file, parameters, audio_test_mock, measure_audio) # Replace test_id with a unique identifier
-    on_finish(results)
-
-def perform_tests_video(test_id, file, on_finish, parameters):
-    results = perform_test(test_id, file, parameters, video_test_mock, measure_video) # Replace test_id with a unique identifier
+def perform_tests(test_id, file, on_finish, parameters, mode):
+    if mode == "audio":
+        results = perform_test(test_id, file, parameters, audio_test_mock, measure_audio)
+    elif mode == "video":
+        results = perform_test(test_id, file, parameters, video_test_mock, measure_video)
+    else:
+        print("Invalid mode")
+        return
     on_finish(results)

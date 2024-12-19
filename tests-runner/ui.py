@@ -14,9 +14,7 @@ import uuid
 SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 RESOURCES_DIR=os.path.join(SCRIPT_DIR, "resources")
 AUDIO_FILE=os.path.join(RESOURCES_DIR, "ENG_M.wav")
-AUDIO_FILE_OUT_TMP=os.path.join(RESOURCES_DIR, "eng_m6.wav")
-VIDEO_FILE=os.path.join(RESOURCES_DIR, "shrek_short.mp4")
-VIDEO_FILE_OUT_TMP=os.path.join(RESOURCES_DIR, "shrek_out.mp4")
+VIDEO_FILE=os.path.join(RESOURCES_DIR, "shrek_shortest.mp4")
         
 class Main(QMainWindow):
     def __init__(self):
@@ -27,7 +25,7 @@ class Main(QMainWindow):
         in_file_button.setText("Select input file...")
         in_file_button.clicked.connect(self.open_in_file_dialog)
         self.in_file_name_label = QLabel()
-        self.in_file_name = (str(VIDEO_FILE))
+        self.in_file_name = str(VIDEO_FILE)
         self.in_file_name_label.setText(self.in_file_name)
         layout.addWidget(self.in_file_name_label)
         layout.addWidget(in_file_button)
@@ -48,11 +46,11 @@ class Main(QMainWindow):
         
         self.start_button.clicked.connect(self.start_button_listener)
         
-        self.show_button = QPushButton()
-        self.show_button.setText("Show graph")
-        self.show_button.setEnabled(False)
-        layout.addWidget(self.show_button)
-        self.show_button.clicked.connect(self.show_graph)
+        # self.show_button = QPushButton()
+        # self.show_button.setText("Show graph")
+        # self.show_button.setEnabled(False)
+        # layout.addWidget(self.show_button)
+        # self.show_button.clicked.connect(self.show_graph)
         
         
         self.tests = {}
@@ -85,39 +83,40 @@ class Main(QMainWindow):
         self.tests_constants[test_id] = self.selector_controller.get_constants().copy()
         self.tests_variables[test_id] = self.selector_controller.get_variables().copy()
         self.tests_types[test_id] = file_mode
-        self.results_list.addWidget(ResultItem(str(parameters), self.show_graph, self, test_id))
+
         
         def on_test_started():
             self.status_text.setText("Running tests...")
-            self.show_button.setEnabled(False)
+            # self.show_button.setEnabled(False)
             
         def on_test_finished(results):
             self.results[test_id] = results
             self.status_text.setText("Tests finished")
-            self.show_button.setEnabled(True)
+            if len(results) < 1:
+                print("No results")
+                return
+            self.results_list.addWidget(ResultItem(str(parameters), self.show_graph, self, test_id))
+            # self.show_button.setEnabled(True)
         
-        if file_mode == "audio": 
-            on_test_started()
-            self.tests[test_id] = str(parameters)
-            threading.Thread(target=tests.perform_tests_audio, args=(test_id, AUDIO_FILE, on_test_finished, parameters)).start()
-        elif file_mode == "video":        
-            on_test_started()
-            self.tests[test_id] = str(parameters)
-            threading.Thread(target=tests.perform_tests_video, args=(test_id, VIDEO_FILE, on_test_finished, parameters)).start() 
-        else:
-            print("Unsupported file type")       
+        if file_mode is None:
+            print("Unsupported file type")
+            return
+        
+        on_test_started()
+        self.tests[test_id] = str(parameters)
+        threading.Thread(target=tests.perform_tests, args=(test_id, self.in_file_name, on_test_finished, parameters, file_mode)).start()  
     
     @pyqtSlot()
     def open_in_file_dialog(self):
         fname = QFileDialog.getOpenFileName(self, "Open File", "${HOME}", "WAV/MP4 (*.wav *.mp4)")
         if fname[0] is not None:
-            self.in_file_name = fname
+            self.in_file_name = fname[0]
             self.in_file_name_label.setText(fname[0])
     
     def file_mode(self):
-        if self.in_file_name[0].endswith(".wav"):
+        if self.in_file_name.endswith(".wav"):
             return "audio"
-        elif self.in_file_name[0].endswith(".mp4"):
+        elif self.in_file_name.endswith(".mp4"):
             return "video"
         else:
             return None
