@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 import matplotlib.pyplot as plt
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QMainWindow, QVBoxLayout, QLabel
-from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QMainWindow, QVBoxLayout, QLabel, QListView
+from PyQt6.QtCore import pyqtSlot, QStringListModel
 import sys
 import tests
-from test_data_selector import TestDataSelector, TestDataSelectorController
+from test_data_selector import TestDataSelector, TestDataSelectorController, ResultItem
 import threading
 import numpy as np
 import os
+import uuid
+
 
 SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 RESOURCES_DIR=os.path.join(SCRIPT_DIR, "resources")
@@ -25,47 +27,41 @@ class Main(QMainWindow):
         in_file_button.setText("Select input file...")
         in_file_button.clicked.connect(self.open_in_file_dialog)
         self.in_file_name_label = QLabel()
-        self.in_file_name = VIDEO_FILE
+        self.in_file_name = (str(VIDEO_FILE))
         self.in_file_name_label.setText(self.in_file_name)
         layout.addWidget(self.in_file_name_label)
         layout.addWidget(in_file_button)
         
-        packet_loss_selector = TestDataSelector("Packet loss [%]", min=0.0, max=100.0, step=50.0)
-        packet_loss_selector.is_variable.get_widget().setChecked(True)
-        layout.addWidget(packet_loss_selector)
-        rtt_selector = TestDataSelector("RTT [ms]", min=0.0, max=100.0, step=50.0)
-        rtt_selector.is_variable.get_widget().setChecked(True)
-        layout.addWidget(rtt_selector)
-        reorder_selector = TestDataSelector("Reorder [%]", min=0.0, max=100.0, step=10.0)
-        layout.addWidget(reorder_selector)
-        self.selector_controller = TestDataSelectorController(max_non_const=1, selectors=[packet_loss_selector, rtt_selector, reorder_selector])
+        self.packet_loss_selector = TestDataSelector("Packet loss [%]", min=0.0, max=100.0, step=50.0)
+        self.packet_loss_selector.is_variable.get_widget().setChecked(True)
+        layout.addWidget(self.packet_loss_selector)
+        self.rtt_selector = TestDataSelector("RTT [ms]", min=0.0, max=100.0, step=50.0)
+        self.rtt_selector.is_variable.get_widget().setChecked(True)
+        layout.addWidget(self.rtt_selector)
+        self.reorder_selector = TestDataSelector("Reorder [%]", min=0.0, max=100.0, step=10.0)
+        layout.addWidget(self.reorder_selector)
+        self.selector_controller = TestDataSelectorController(max_non_const=1, selectors=[self.packet_loss_selector, self.rtt_selector, self.reorder_selector])
         
         self.start_button = QPushButton()
         self.start_button.setText("Start tests")
-        layout.addWidget(self.start_button)
-        def on_test_started():
-            self.status_text.setText("Running tests...")
-            self.show_button.setEnabled(False)
-        def on_test_finished(results):
-            self.results = results
-            self.status_text.setText("Tests finished")
-            self.show_button.setEnabled(True)
-        def start_button_listener():
-            if self.file_mode() == "audio": 
-                on_test_started()
-                threading.Thread(target=tests.perform_tests_audio, args=(AUDIO_FILE, on_test_finished, packet_loss_selector, rtt_selector, reorder_selector)).start()
-            elif self.file_mode() == "video":        
-                on_test_started()
-                threading.Thread(target=tests.perform_tests_video, args=(VIDEO_FILE, on_test_finished, packet_loss_selector, rtt_selector, reorder_selector)).start() 
-            else:
-                print("Unsupported file type")       
-        self.start_button.clicked.connect(start_button_listener)
+        layout.addWidget(self.start_button)    
+        
+        self.start_button.clicked.connect(self.start_button_listener)
         
         self.show_button = QPushButton()
         self.show_button.setText("Show graph")
         self.show_button.setEnabled(False)
         layout.addWidget(self.show_button)
         self.show_button.clicked.connect(self.show_graph)
+        
+        
+        self.tests = {}
+        self.results = {}
+        self.tests_constants = {}
+        self.tests_variables = {}
+        self.tests_types = {}
+        self.results_list = QVBoxLayout()
+        layout.addLayout(self.results_list)
         
         self.status_text = QLabel()
         layout.addWidget(self.status_text)
@@ -74,31 +70,73 @@ class Main(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
     
+    def get_test_parameters(self):
+        return {
+            self.packet_loss_selector.name: list(self.packet_loss_selector),
+            self.rtt_selector.name: list(self.rtt_selector),
+            self.reorder_selector.name: list(self.reorder_selector)
+        }
+        
+    def start_button_listener(self):
+        test_id = str(uuid.uuid4())
+        parameters = self.get_test_parameters()
+        file_mode = self.file_mode()
+        self.tests[test_id] = parameters
+        self.tests_constants[test_id] = self.selector_controller.get_constants().copy()
+        self.tests_variables[test_id] = self.selector_controller.get_variables().copy()
+        self.tests_types[test_id] = file_mode
+        self.results_list.addWidget(ResultItem(str(parameters), self.show_graph, self, test_id))
+        
+        def on_test_started():
+            self.status_text.setText("Running tests...")
+            self.show_button.setEnabled(False)
+            
+        def on_test_finished(results):
+            self.results[test_id] = results
+            self.status_text.setText("Tests finished")
+            self.show_button.setEnabled(True)
+        
+        if file_mode == "audio": 
+            on_test_started()
+            self.tests[test_id] = str(parameters)
+            threading.Thread(target=tests.perform_tests_audio, args=(test_id, AUDIO_FILE, on_test_finished, parameters)).start()
+        elif file_mode == "video":        
+            on_test_started()
+            self.tests[test_id] = str(parameters)
+            threading.Thread(target=tests.perform_tests_video, args=(test_id, VIDEO_FILE, on_test_finished, parameters)).start() 
+        else:
+            print("Unsupported file type")       
+    
     @pyqtSlot()
     def open_in_file_dialog(self):
-        fname = QFileDialog.getOpenFileName(self, "Open File", "${HOME}", "Audio Files (*.wav)")
+        fname = QFileDialog.getOpenFileName(self, "Open File", "${HOME}", "WAV/MP4 (*.wav *.mp4)")
         if fname[0] is not None:
             self.in_file_name = fname
             self.in_file_name_label.setText(fname[0])
     
     def file_mode(self):
-        if self.in_file_name.endswith(".wav"):
+        if self.in_file_name[0].endswith(".wav"):
             return "audio"
-        elif self.in_file_name.endswith(".mp4"):
+        elif self.in_file_name[0].endswith(".mp4"):
             return "video"
         else:
             return None
     
-    def show_graph(self):
-        if self.file_mode() == "audio":
-            self.show_graph_audio()
-        elif self.file_mode() == "video":
-            self.show_graph_video()
+    def show_graph(self, test_id): #TODO None
+        mode = self.tests_types[test_id]
+        if mode == "audio":
+            self.show_graph_audio(test_id)
+        elif mode == "video":
+            self.show_graph_video(test_id)
         else:
             print("Unsupported file type")
+    
+    def get_results(self, test_id):
+        return self.tests[test_id]
             
-    def show_graph_audio(self):
-        results = self.results
+    def show_graph_audio(self, test_id):
+        results = self.results[test_id] # first test, [0]
+        
         # for i in results.items():
         #     print(i)
         
@@ -106,7 +144,8 @@ class Main(QMainWindow):
         results = [(dict(k), v) for k, v in results.items()]
         
         # Get only the variable parameter names
-        x_keys = [x.name for x in self.selector_controller.get_variables()]
+        #x_keys = [x.name for x in self.selector_controller.get_variables()]
+        x_keys = [x.name for x in self.tests_variables[test_id]]
         
         #
         # Convert from, for example:
@@ -123,7 +162,8 @@ class Main(QMainWindow):
             data.append(entry)             
                     
         # Get constant values to include in the title
-        consts = [c.name for c in self.selector_controller.get_constants()]
+        consts = [c.name for c in self.tests_constants[test_id]]
+        #consts = [c.name for c in self.selector_controller.get_constants()]
         const_values = [results[0][0][name] for name in consts]
         consts = list(zip(consts, const_values))
         title = "Test results" + str(consts)
@@ -170,17 +210,15 @@ class Main(QMainWindow):
             ax.legend()
         plt.show()
     
-    def show_graph_video(self):
-        results = self.results
-        # for i in results.items():
-        #     print(i)
+    def show_graph_video(self, test_id):
+        results = self.results[test_id]
         
         # Convert from frozensets to dictionaries
         results = [(dict(k), v) for k, v in results.items()]
         
         # Get only the variable parameter names
-        x_keys = [x.name for x in self.selector_controller.get_variables()]
-        
+        #x_keys = [x.name for x in self.selector_controller.get_variables()]
+        x_keys = [x.name for x in self.tests_variables[test_id]]
         #
         # Convert from, for example:
         # {('Packet loss', 0.0), ('RTT', 50.0), ('Reorder', 0.0)}: {'pesq': 0, 'p.563': 0}
@@ -196,7 +234,8 @@ class Main(QMainWindow):
             data.append(entry)             
                     
         # Get constant values to include in the title
-        consts = [c.name for c in self.selector_controller.get_constants()]
+        #consts = [c.name for c in self.selector_controller.get_constants()]
+        consts = [c.name for c in self.tests_constants[test_id]]
         const_values = [results[0][0][name] for name in consts]
         consts = list(zip(consts, const_values))
         title = "Test results" + str(consts)

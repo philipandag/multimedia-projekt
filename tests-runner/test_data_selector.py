@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QDoubleSpinBox, QLabel, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QDoubleSpinBox, QLabel, QHBoxLayout, QStyledItemDelegate, QPushButton
 
 class LabeledField(QWidget):
     def __init__(self, label: str, widget: QWidget):
@@ -117,3 +117,28 @@ class TestDataSelectorController:
         return [s for s in self.selectors if s.is_variable.get_widget().isChecked()]
     def get_constants(self):
         return [s for s in self.selectors if not s.is_variable.get_widget().isChecked()]
+    
+
+class ResultItem(QWidget):
+    def __init__(self, label_text, button_callback, tester, test_id):
+        super(ResultItem, self).__init__()
+        layout = QHBoxLayout()
+        self.label = QLabel()
+        self.label.setText(label_text)
+        layout.addWidget(self.label)
+        
+        self.button = QPushButton()
+        self.button.setText("Show")
+        def callback():
+            if test_id in tester.results:
+                button_callback(test_id)
+            else:
+                print("No results for test id yet: ", test_id)
+        self.button.clicked.connect(callback)
+        layout.addWidget(self.button)
+        self.setLayout(layout)
+        
+        
+        
+        
+        
