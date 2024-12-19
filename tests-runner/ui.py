@@ -88,14 +88,15 @@ class Main(QMainWindow):
         def on_test_started():
             self.status_text.setText("Running tests...")
             # self.show_button.setEnabled(False)
-            
+        
+        result_entry = ResultItem(str(parameters), self.show_graph, self, test_id)
+        self.results_list.addWidget(result_entry)
         def on_test_finished(results):
             self.results[test_id] = results
             self.status_text.setText("Tests finished")
             if len(results) < 1:
                 print("No results")
                 return
-            self.results_list.addWidget(ResultItem(str(parameters), self.show_graph, self, test_id))
             # self.show_button.setEnabled(True)
         
         if file_mode is None:

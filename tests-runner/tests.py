@@ -8,9 +8,12 @@ import itertools
 import ast
 import random
 import cv2
+from skimage import io as skimage_io
+import skimage
 from skimage.metrics import structural_similarity as scikit_ssim
 from skimage.metrics import peak_signal_noise_ratio as scikit_psnr
 import network_utils
+import numpy as np
 
 SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 TEST_RESULTS_DIR=os.path.join(SCRIPT_DIR, "test_results")
@@ -65,34 +68,51 @@ def video_test_mock(in_file, original_data_dir, out_data_dir, parameters):
             out.write(tmp.read())
 
 def measure_video(original_data_dir, out_data_dir, results_dir) -> dict:
+    
+    #### mock for video sender
     in_file = os.path.join(original_data_dir, "in.mp4")
     out_file = os.path.join(out_data_dir, "out.mp4")
     in_video = cv2.VideoCapture(in_file)
     out_video = cv2.VideoCapture(out_file)
     frames_count = 0
-    psnr = 0
-    ssim = 0
     while 1:
         _, image_in = in_video.read()
         _, image_out = out_video.read()
         if image_in is None or image_out is None:
             break
-        # print(image_in.shape)
-
-        print(frames_count)
-        # cv2.imshow("Input", image_in)
-        # cv2.waitKey(0)
-
+        fname = os.path.join(original_data_dir, str(frames_count) + ".png")
+        cv2.imwrite(fname, image_in)
+        fname = os.path.join(out_data_dir, str(frames_count) + ".png")
+        cv2.imwrite(fname, image_out)
         frames_count = frames_count + 1
-        image_in = cv2.cvtColor(image_in, cv2.COLOR_BGR2RGB)
-        image_out = cv2.cvtColor(image_out, cv2.COLOR_BGR2RGB)
-        psnr_score = scikit_psnr(image_in, image_out)
-        ssim_score = scikit_ssim(image_in, image_out, multichannel=True, full=True, win_size=7, channel_axis=2)
-        psnr = psnr + min(psnr_score, 100)
-        ssim = ssim + ssim_score[0]
-    #cv2.destroyAllWindows()
+    ####
+    
     in_video.release()
     out_video.release()
+    frames_count = 0
+    psnr = 0
+    ssim = 0
+    while 1:
+        in_file = os.path.join(original_data_dir, str(frames_count) + ".png")
+        out_file = os.path.join(out_data_dir, str(frames_count) + ".png")
+        if not os.path.exists(in_file) or not os.path.exists(out_file):
+            break
+        image_in = skimage_io.imread(in_file)
+        image_out = skimage_io.imread(out_file)
+        if image_in is None or image_out is None:
+            break    
+        print(frames_count)
+        
+        #image_out = skimage.util.random_noise(image_out, mode='s&p', amount=0.001)
+        
+        data_range = image_out.max()-image_out.min()
+        frames_count = frames_count + 1
+        
+        np.seterr(divide='ignore')
+        psnr_score = scikit_psnr(image_in, image_out)
+        ssim_score = scikit_ssim(image_in, image_out, multichannel=True, full=True, win_size=3, channel_axis=2, data_range=data_range)
+        psnr = psnr + min(psnr_score, 100)
+        ssim = ssim + ssim_score[0]
     
     psnr = psnr / frames_count
     ssim = ssim / frames_count
