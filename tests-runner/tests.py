@@ -66,10 +66,8 @@ def video_test_mock(in_file, original_data_dir, out_data_dir, parameters):
         out_file = os.path.join(out_data_dir, "out.mp4")
         with open(out_file, "wb") as out:
             out.write(tmp.read())
-
-def measure_video(original_data_dir, out_data_dir, results_dir) -> dict:
-    
-    #### mock for video sender
+            
+    #### change mp4 into images
     in_file = os.path.join(original_data_dir, "in.mp4")
     out_file = os.path.join(out_data_dir, "out.mp4")
     in_video = cv2.VideoCapture(in_file)
@@ -86,9 +84,10 @@ def measure_video(original_data_dir, out_data_dir, results_dir) -> dict:
         cv2.imwrite(fname, image_out)
         frames_count = frames_count + 1
     ####
-    
     in_video.release()
     out_video.release()
+
+def measure_video(original_data_dir, out_data_dir, results_dir) -> dict:
     frames_count = 0
     psnr = 0
     ssim = 0
@@ -103,7 +102,8 @@ def measure_video(original_data_dir, out_data_dir, results_dir) -> dict:
             break    
         print(frames_count)
         
-        #image_out = skimage.util.random_noise(image_out, mode='s&p', amount=0.001)
+        image_in = skimage.util.random_noise(image_in, mode='s&p', amount=0.000)
+        image_out = skimage.util.random_noise(image_out, mode='s&p', amount=0.001) # TODO remove this alteration
         
         data_range = image_out.max()-image_out.min()
         frames_count = frames_count + 1
